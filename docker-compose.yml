@@ -1,0 +1,20 @@
+services:
+  devel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        HOST_UID: ${HOST_UID:-1000}
+        HOST_GID: ${HOST_GID:-1000}
+      platforms:
+        - linux/arm64
+    image: devel-cpp:latest
+    container_name: devel
+    hostname: devel
+    stdin_open: true
+    tty: true
+    volumes:
+      - ${HOME}/repo:/home/devel/repo
+    working_dir: /home/devel/repo
+    environment:
+      - TERM=xterm-256color
