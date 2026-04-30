@@ -23,6 +23,7 @@ A Docker-based C++ development environment built on Ubuntu 24.04, with the host 
 | Version control | `git`, `git-lfs` |
 | Scripting | `python3`, `pip` |
 | Utilities | `vim`, `nano`, `curl`, `wget`, `jq`, `pkg-config` |
+| Editor | `neovim` with `LazyVim` (plugins download on first launch) |
 | Shell | `zsh` |
 | Docker | `docker` CLI (via host socket) |
 

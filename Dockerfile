@@ -35,6 +35,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Editors
     vim \
     nano \
+    neovim \
+    # LazyVim dependencies
+    ripgrep \
+    fd-find \
     # Network & download tools
     curl \
     wget \
@@ -80,5 +84,17 @@ RUN echo 'export PROMPT="%F{green}devel%f:%F{blue}%~%f%# "' >> /home/devel/.zshr
 WORKDIR /home/devel/repo
 
 USER devel
+
+# Set up LazyVim starter config
+# Plugins are downloaded on first launch by lazy.nvim
+RUN git clone --depth 1 https://github.com/LazyVim/starter /home/devel/.config/nvim \
+    && rm -rf /home/devel/.config/nvim/.git \
+    # fd is installed as fdfind on Ubuntu — symlink to fd for LazyVim/telescope
+    && mkdir -p /home/devel/.local/bin \
+    && ln -sf /usr/bin/fdfind /home/devel/.local/bin/fd \
+    && echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/devel/.zshrc
+
+# Copy custom plugin configs (cpp, completion, debugging)
+COPY --chown=devel:devel nvim/lua/plugins/ /home/devel/.config/nvim/lua/plugins/
 
 CMD ["/bin/zsh"]
