@@ -35,7 +35,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Editors
     vim \
     nano \
-    neovim \
     # LazyVim dependencies
     ripgrep \
     fd-find \
@@ -76,10 +75,20 @@ RUN getent group ${HOST_GID} || groupadd -g ${HOST_GID} devel && \
     # Add devel user to the docker group so it can use the host Docker socket
     usermod -aG docker devel
 
-# Configure prompt and ccache in zsh
+# Configure prompt, ccache, and local bin path in zsh
 RUN echo 'export PROMPT="%F{green}devel%f:%F{blue}%~%f%# "' >> /home/devel/.zshrc && \
     echo 'export PROMPT="%F{green}devel%f:%F{blue}%~%f%# "' >> /root/.zshrc && \
-    echo 'export PATH="/usr/lib/ccache:$PATH"' >> /home/devel/.zshrc
+    echo 'export PATH="/usr/lib/ccache:$HOME/.local/bin:$PATH"' >> /home/devel/.zshrc && \
+    chown ${HOST_UID}:${HOST_GID} /home/devel/.zshrc
+
+# Install latest Neovim from official GitHub release (apt version is outdated)
+RUN ARCH=$(uname -m) && \
+    [ "$ARCH" = "aarch64" ] && NVIM_ARCH="arm64" || NVIM_ARCH="x86_64" && \
+    curl -fLo /tmp/nvim.tar.gz \
+        "https://github.com/neovim/neovim/releases/latest/download/nvim-linux-${NVIM_ARCH}.tar.gz" && \
+    tar -xzf /tmp/nvim.tar.gz -C /opt && \
+    ln -sf /opt/nvim-linux-${NVIM_ARCH}/bin/nvim /usr/local/bin/nvim && \
+    rm /tmp/nvim.tar.gz
 
 WORKDIR /home/devel/repo
 
@@ -91,10 +100,11 @@ RUN git clone --depth 1 https://github.com/LazyVim/starter /home/devel/.config/n
     && rm -rf /home/devel/.config/nvim/.git \
     # fd is installed as fdfind on Ubuntu — symlink to fd for LazyVim/telescope
     && mkdir -p /home/devel/.local/bin \
-    && ln -sf /usr/bin/fdfind /home/devel/.local/bin/fd \
-    && echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/devel/.zshrc
+    && ln -sf /usr/bin/fdfind /home/devel/.local/bin/fd
 
-# Copy custom plugin configs (cpp, completion, debugging)
-COPY --chown=devel:devel nvim/lua/plugins/ /home/devel/.config/nvim/lua/plugins/
+USER root
+COPY nvim/lua/plugins/ /home/devel/.config/nvim/lua/plugins/
+RUN chown -R ${HOST_UID}:${HOST_GID} /home/devel/.config/nvim/lua/plugins/
 
+USER devel
 CMD ["/bin/zsh"]

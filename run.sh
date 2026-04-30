@@ -23,7 +23,6 @@ else
     exit 1
 fi
 
-echo "Using: $ENGINE"
 
 # Socket override: only Docker on Linux can mount the host socket into containers.
 # Podman on macOS does not support mounting the macOS-side socket into the Linux VM.
