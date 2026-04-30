@@ -47,6 +47,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     tar \
     xz-utils \
+    # Node.js (required for markdown-preview.nvim and prettier)
+    nodejs \
+    npm \
     # Python (for build scripts)
     python3 \
     python3-pip \
