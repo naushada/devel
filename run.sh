@@ -12,32 +12,21 @@ if command -v docker &>/dev/null; then
     COMPOSE="docker compose"
 elif command -v podman &>/dev/null; then
     ENGINE=podman
-    # Use podman-compose if available, otherwise podman compose
-    if command -v podman-compose &>/dev/null; then
-        COMPOSE="podman-compose"
-    else
-        COMPOSE="podman compose"
-    fi
+    COMPOSE="podman compose"
 else
     echo "Error: neither docker nor podman found. Install one and try again."
     exit 1
 fi
 
-
-# Socket override: only Docker on Linux can mount the host socket into containers.
-# Podman on macOS does not support mounting the macOS-side socket into the Linux VM.
+COMPOSE_FILES="-f $SCRIPT_DIR/docker-compose.yml"
 if [ "$ENGINE" = "docker" ] && [[ "$(uname)" != "Darwin" ]]; then
-    COMPOSE_FILES="-f $SCRIPT_DIR/docker-compose.yml -f $SCRIPT_DIR/docker-compose.sock.yml"
-else
-    COMPOSE_FILES="-f $SCRIPT_DIR/docker-compose.yml"
+    COMPOSE_FILES="$COMPOSE_FILES -f $SCRIPT_DIR/docker-compose.sock.yml"
 fi
 
 # For Podman on macOS, ensure the VM is initialised and running
 if [ "$ENGINE" = "podman" ] && [[ "$(uname)" == "Darwin" ]]; then
     if ! podman machine list 2>/dev/null | grep -q "podman-machine-default"; then
         echo "Podman machine not found — initialising..."
-        # On Apple Silicon, prefer Apple Hypervisor Framework (Podman 5+) over QEMU to avoid Rosetta.
-        # Fall back to plain init if --vm-type is not supported by this version.
         if [[ "$(uname -m)" == "arm64" ]]; then
             if podman machine init --help 2>&1 | grep -q "vm-type"; then
                 podman machine init --vm-type=applehv
@@ -53,7 +42,31 @@ if [ "$ENGINE" = "podman" ] && [[ "$(uname)" == "Darwin" ]]; then
         echo "Podman machine not running — starting it..."
         podman machine start
     fi
+    # Rootful mode: socket is at /run/podman/podman.sock inside the VM
+    # Rootless mode: socket is at /run/user/<uid>/podman/podman.sock (user namespace issues)
+    ROOTFUL=$(podman machine inspect --format '{{.Rootful}}' 2>/dev/null || echo "false")
+    if [ "$ROOTFUL" = "true" ]; then
+        PODMAN_SOCK="/run/podman/podman.sock"
+    else
+        echo "Warning: Podman machine is running in rootless mode."
+        echo "Docker socket access may fail. Switch to rootful for reliable docker-in-container:"
+        echo "  podman machine stop && podman machine set --rootful && podman machine start"
+        PODMAN_SOCK="/run/user/${HOST_UID}/podman/podman.sock"
+        podman machine ssh "chmod 666 ${PODMAN_SOCK}" 2>/dev/null || true
+    fi
 fi
+
+podman_run() {
+    podman run --rm -it \
+        --hostname devel \
+        --security-opt label=disable \
+        -v "${HOME}/repo:/home/devel/repo" \
+        -v "${PODMAN_SOCK}:/var/run/docker.sock" \
+        -e TERM=xterm-256color \
+        -e HOME=/home/devel \
+        -e DOCKER_HOST=unix:///var/run/docker.sock \
+        devel-cpp:latest
+}
 
 case "${1:-}" in
   help|--help|-h)
@@ -70,7 +83,7 @@ Commands:
 Environment:
   Host dir     \$HOME/repo  →  ~/repo  inside the container
   Engine       Auto-detected: docker (preferred) or podman
-  Prompt       devel:~/repo\$
+  Prompt       devel:~/repo%
 
 Examples:
   devel              # open a shell
@@ -95,7 +108,11 @@ EOF
       echo "Image not found — building first..."
       $COMPOSE $COMPOSE_FILES build
     fi
-    $COMPOSE $COMPOSE_FILES run --rm devel /bin/zsh
+    if [ "$ENGINE" = "podman" ] && [[ "$(uname)" == "Darwin" ]]; then
+        podman_run
+    else
+        $COMPOSE $COMPOSE_FILES run --rm devel
+    fi
     ;;
   *)
     echo "Error: unknown command '${1}'"

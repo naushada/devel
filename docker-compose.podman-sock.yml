@@ -1,0 +1,6 @@
+services:
+  devel:
+    volumes:
+      - /run/user/${HOST_UID}/podman/podman.sock:/var/run/docker.sock
+    environment:
+      - DOCKER_HOST=unix:///var/run/docker.sock

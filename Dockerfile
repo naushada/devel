@@ -90,6 +90,7 @@ RUN ARCH=$(uname -m) && \
     ln -sf /opt/nvim-linux-${NVIM_ARCH}/bin/nvim /usr/local/bin/nvim && \
     rm /tmp/nvim.tar.gz
 
+
 WORKDIR /home/devel/repo
 
 USER devel
@@ -106,5 +107,7 @@ USER root
 COPY nvim/lua/plugins/ /home/devel/.config/nvim/lua/plugins/
 RUN chown -R ${HOST_UID}:${HOST_GID} /home/devel/.config/nvim/lua/plugins/
 
-USER devel
-CMD ["/bin/zsh"]
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
