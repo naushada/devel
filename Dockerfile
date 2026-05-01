@@ -67,6 +67,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zsh \
     # Docker CLI (for Docker-out-of-Docker via host socket)
     docker.io \
+    docker-compose-v2 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
