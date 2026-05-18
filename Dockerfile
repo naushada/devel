@@ -82,8 +82,17 @@ RUN getent group ${HOST_GID} || groupadd -g ${HOST_GID} devel && \
 # Configure prompt, ccache, and local bin path in zsh
 RUN echo 'export PROMPT="%F{green}devel%f:%F{blue}%~%f%# "' >> /home/devel/.zshrc && \
     echo 'export PROMPT="%F{green}devel%f:%F{blue}%~%f%# "' >> /root/.zshrc && \
-    echo 'export PATH="/usr/lib/ccache:$HOME/.local/bin:$PATH"' >> /home/devel/.zshrc && \
-    chown ${HOST_UID}:${HOST_GID} /home/devel/.zshrc
+    echo 'export PATH="/usr/lib/ccache:$HOME/.local/bin:$PATH"' >> /home/devel/.zshrc
+
+# Banner shown on interactive shell start
+RUN <<'EOF' cat >> /home/devel/.zshrc
+print -rP '%F{green}     _                 _ %f'
+print -rP '%F{green}  __| | _____   _____| |%f'
+print -rP '%F{green} / _` |/ _ \ \ / / _ \ |%f'
+print -rP '%F{green}| (_| |  __/\ V /  __/ |%f'
+print -rP '%F{green} \__,_|\___| \_/ \___|_|%f'
+EOF
+RUN chown ${HOST_UID}:${HOST_GID} /home/devel/.zshrc
 
 # Install latest Neovim from official GitHub release (apt version is outdated)
 RUN ARCH=$(uname -m) && \
