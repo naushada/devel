@@ -14,7 +14,7 @@ services:
     stdin_open: true
     tty: true
     volumes:
-      - ${REPO:-${HOME}}:/home/devel/repo
-    working_dir: /home/devel/repo
+      - ${REPO}:/home/engineer/repo
+    working_dir: /home/engineer/repo
     environment:
       - TERM=xterm-256color

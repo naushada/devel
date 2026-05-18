@@ -68,31 +68,34 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Docker CLI (for Docker-out-of-Docker via host socket)
     docker.io \
     docker-compose-v2 \
+    # sudo (rm is restricted to root; engineer invokes it via sudo)
+    sudo \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Set up a non-root user matching common host UID to avoid permission issues
+# Set up the engineer user (matches host UID/GID to avoid permission issues)
 ARG HOST_UID=1000
 ARG HOST_GID=1000
-RUN getent group ${HOST_GID} || groupadd -g ${HOST_GID} devel && \
-    useradd -m -u ${HOST_UID} -g ${HOST_GID} -s /bin/zsh devel && \
-    # Add devel user to the docker group so it can use the host Docker socket
-    usermod -aG docker devel
+RUN getent group ${HOST_GID} || groupadd -g ${HOST_GID} engineer && \
+    useradd -m -u ${HOST_UID} -g ${HOST_GID} -s /bin/zsh engineer && \
+    echo 'engineer:engineer' | chpasswd && \
+    usermod -aG docker,sudo engineer
 
-# Configure prompt, ccache, and local bin path in zsh
-RUN echo 'export PROMPT="%F{green}devel%f:%F{blue}%~%f%# "' >> /home/devel/.zshrc && \
-    echo 'export PROMPT="%F{green}devel%f:%F{blue}%~%f%# "' >> /root/.zshrc && \
-    echo 'export PATH="/usr/lib/ccache:$HOME/.local/bin:$PATH"' >> /home/devel/.zshrc
+# Configure prompt, ccache, local bin path, and rm-via-sudo alias in zsh
+RUN echo 'export PROMPT="%F{green}engineer%f:%F{blue}%~%f%# "' >> /home/engineer/.zshrc && \
+    echo 'export PROMPT="%F{green}engineer%f:%F{blue}%~%f%# "' >> /root/.zshrc && \
+    echo 'export PATH="/usr/lib/ccache:$HOME/.local/bin:$PATH"' >> /home/engineer/.zshrc && \
+    echo "alias rm='sudo -k /bin/rm'" >> /home/engineer/.zshrc
 
 # Banner shown on interactive shell start
-RUN <<'EOF' cat >> /home/devel/.zshrc
+RUN <<'EOF' cat >> /home/engineer/.zshrc
 print -rP '%F{green}     _                 _ %f'
 print -rP '%F{green}  __| | _____   _____| |%f'
 print -rP '%F{green} / _` |/ _ \ \ / / _ \ |%f'
 print -rP '%F{green}| (_| |  __/\ V /  __/ |%f'
 print -rP '%F{green} \__,_|\___| \_/ \___|_|%f'
 EOF
-RUN chown ${HOST_UID}:${HOST_GID} /home/devel/.zshrc
+RUN chown ${HOST_UID}:${HOST_GID} /home/engineer/.zshrc
 
 # Install latest Neovim from official GitHub release (apt version is outdated)
 RUN ARCH=$(uname -m) && \
@@ -104,21 +107,25 @@ RUN ARCH=$(uname -m) && \
     rm /tmp/nvim.tar.gz
 
 
-WORKDIR /home/devel/repo
+WORKDIR /home/engineer/repo
 
-USER devel
+USER engineer
 
 # Set up LazyVim starter config
 # Plugins are downloaded on first launch by lazy.nvim
-RUN git clone --depth 1 https://github.com/LazyVim/starter /home/devel/.config/nvim \
-    && rm -rf /home/devel/.config/nvim/.git \
+RUN git clone --depth 1 https://github.com/LazyVim/starter /home/engineer/.config/nvim \
+    && rm -rf /home/engineer/.config/nvim/.git \
     # fd is installed as fdfind on Ubuntu — symlink to fd for LazyVim/telescope
-    && mkdir -p /home/devel/.local/bin \
-    && ln -sf /usr/bin/fdfind /home/devel/.local/bin/fd
+    && mkdir -p /home/engineer/.local/bin \
+    && ln -sf /usr/bin/fdfind /home/engineer/.local/bin/fd
 
 USER root
-COPY nvim/lua/plugins/ /home/devel/.config/nvim/lua/plugins/
-RUN chown -R ${HOST_UID}:${HOST_GID} /home/devel/.config/nvim/lua/plugins/
+COPY nvim/lua/plugins/ /home/engineer/.config/nvim/lua/plugins/
+RUN chown -R ${HOST_UID}:${HOST_GID} /home/engineer/.config/nvim/lua/plugins/
+
+# Restrict /bin/rm to root only — engineer must use `sudo rm` (aliased in .zshrc).
+# Done last so earlier RUN steps can still use rm.
+RUN chmod 700 /bin/rm
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

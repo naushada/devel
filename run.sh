@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 export HOST_UID=$(id -u)
 export HOST_GID=$(id -g)
+export REPO="${REPO:-$HOME}"
 
 # Detect container engine: prefer docker, fall back to podman
 if command -v docker &>/dev/null; then
@@ -60,10 +61,10 @@ podman_run() {
     podman run --rm -it \
         --hostname devel \
         --security-opt label=disable \
-        -v "${REPO:-$HOME}:/home/devel/repo" \
+        -v "${REPO:-$HOME}:/home/engineer/repo" \
         -v "${PODMAN_SOCK}:/var/run/docker.sock" \
         -e TERM=xterm-256color \
-        -e HOME=/home/devel \
+        -e HOME=/home/engineer \
         -e DOCKER_HOST=unix:///var/run/docker.sock \
         devel-cpp:latest
 }
@@ -83,7 +84,7 @@ Commands:
 Environment:
   Host dir     \${REPO:-\$HOME}  →  ~/repo  inside the container
   Engine       Auto-detected: docker (preferred) or podman
-  Prompt       devel:~/repo%
+  Prompt       engineer:~/repo%
 
 Examples:
   devel              # open a shell

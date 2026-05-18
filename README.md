@@ -107,28 +107,34 @@ devel down       # stop and remove the container
 Once inside the container the prompt looks like:
 
 ```
-devel:/repo$
+engineer:/repo$
 ```
 
-`devel` is shown in green and the current path in blue.
+`engineer` is shown in green and the current path in blue.
 
 ---
 
 ## Volume Mount
 
-The host directory `$HOME/repo` is mounted to `~/repo` (`/home/devel/repo`) inside the container. Files created or modified inside the container are immediately reflected on the host, and vice versa.
+The host directory `${REPO:-$HOME}` is mounted to `~/repo` (`/home/engineer/repo`) inside the container. Set `REPO` to override the source; it defaults to `$HOME`. Files created or modified inside the container are immediately reflected on the host, and vice versa.
 
 ---
 
 ## File Permissions
 
-The container runs as a non-root user (`devel`) whose UID and GID are matched to your host user at build time. Files created inside the container have the correct ownership on the host.
+The container runs as a non-root user (`engineer`) whose UID and GID are matched to your host user at build time. Files created inside the container have the correct ownership on the host.
+
+---
+
+## `rm` is restricted to root
+
+To protect the bind-mounted host directory from accidental deletes, `/bin/rm` is mode `700` (root only). The `engineer` user gets an alias `rm='sudo -k /bin/rm'` so each `rm` invocation prompts for `engineer`'s password (default: `engineer`). This is a speed bump, not strong security — `find -delete`, scripts that call `unlink`, and similar paths still bypass the prompt.
 
 ---
 
 ## Building Docker Images from Inside the Container (DooD)
 
-The host Docker socket (`/var/run/docker.sock`) is mounted into the container and the `devel` user is added to the `docker` group. You can run `docker build` and `docker run` normally from inside the container — images are built on the host daemon and visible on the host.
+The host Docker socket (`/var/run/docker.sock`) is mounted into the container and the `engineer` user is added to the `docker` group. You can run `docker build` and `docker run` normally from inside the container — images are built on the host daemon and visible on the host.
 
 ```bash
 # Inside the container
