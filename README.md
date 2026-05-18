@@ -51,27 +51,18 @@ podman machine start     # starts the VM (run.sh does this automatically on subs
 
 ## First-time Setup
 
-### 1. Add the `devel` alias to your shell
-
-Add the following line to `~/.zshrc` so the `devel` command is available from any directory:
+From the cloned repo directory, run:
 
 ```bash
-alias devel="$HOME/repo/devel/run.sh"
+./install.sh
 ```
 
-Then reload your shell:
+`install.sh` will:
+- detect your shell (`$SHELL`, then existing rc files, then platform default)
+- add `alias devel="<absolute path>/run.sh"` to your `~/.zshrc` or `~/.bashrc` (idempotent — safe to re-run; updates the path if you moved the repo)
+- launch the container (which builds the image on first run)
 
-```bash
-source ~/.zshrc
-```
-
-### 2. Build the container image
-
-```bash
-devel build
-```
-
-This only needs to be done once (or again if you change the `Dockerfile`).
+Open a new shell or `source ~/.zshrc` (or `~/.bashrc`) afterwards to use `devel` from any directory.
 
 ---
 
