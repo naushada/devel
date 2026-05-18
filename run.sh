@@ -60,7 +60,7 @@ podman_run() {
     podman run --rm -it \
         --hostname devel \
         --security-opt label=disable \
-        -v "${HOME}/repo:/home/devel/repo" \
+        -v "${REPO:-$HOME}:/home/devel/repo" \
         -v "${PODMAN_SOCK}:/var/run/docker.sock" \
         -e TERM=xterm-256color \
         -e HOME=/home/devel \
@@ -81,7 +81,7 @@ Commands:
   help         Show this help message
 
 Environment:
-  Host dir     \$HOME/repo  →  ~/repo  inside the container
+  Host dir     \${REPO:-\$HOME}  →  ~/repo  inside the container
   Engine       Auto-detected: docker (preferred) or podman
   Prompt       devel:~/repo%
 
