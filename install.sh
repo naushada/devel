@@ -18,7 +18,52 @@ if [ ! -f "$RUN_PATH" ]; then
 fi
 [ -x "$RUN_PATH" ] || chmod +x "$RUN_PATH"
 
-# 2. Pick the rc file. Prefer the file matching $SHELL; otherwise use
+# 2. Ensure a container engine is available: prefer podman, then docker.
+#    If neither is found, install docker.
+install_docker() {
+    local os="$(uname)"
+    if [ "$os" = "Darwin" ]; then
+        if command -v brew >/dev/null 2>&1; then
+            info "installing Docker Desktop via Homebrew..."
+            brew install --cask docker
+        else
+            err "Homebrew not found. Install it from https://brew.sh or install Docker Desktop manually: https://docs.docker.com/desktop/install/mac-install/"
+            exit 1
+        fi
+    elif [ "$os" = "Linux" ]; then
+        info "installing docker via get.docker.com..."
+        if ! command -v curl >/dev/null 2>&1; then
+            err "curl is required to install docker. Install curl and re-run."
+            exit 1
+        fi
+        local sudo_cmd=""
+        [ "$(id -u)" -ne 0 ] && sudo_cmd="sudo"
+        curl -fsSL https://get.docker.com | $sudo_cmd sh
+        if [ -n "$sudo_cmd" ] && getent group docker >/dev/null 2>&1; then
+            info "adding $USER to the 'docker' group (log out/in to take effect)"
+            $sudo_cmd usermod -aG docker "$USER" || true
+        fi
+    else
+        err "unsupported OS '$os'. Install docker or podman manually and re-run."
+        exit 1
+    fi
+}
+
+if command -v podman >/dev/null 2>&1; then
+    info "found podman: $(command -v podman)"
+elif command -v docker >/dev/null 2>&1; then
+    info "found docker: $(command -v docker)"
+else
+    info "neither podman nor docker found — installing docker"
+    install_docker
+    if ! command -v docker >/dev/null 2>&1; then
+        err "docker installation did not complete successfully."
+        exit 1
+    fi
+    info "docker installed: $(command -v docker)"
+fi
+
+# 3. Pick the rc file. Prefer the file matching $SHELL; otherwise use
 #    whichever rc file exists; otherwise default by platform.
 pick_rc() {
     case "$(basename "${SHELL:-}")" in
@@ -33,7 +78,7 @@ pick_rc() {
 RC="$(pick_rc)"
 [ -e "$RC" ] || { info "creating $RC" ; : > "$RC"; }
 
-# 3. Install or update the alias idempotently.
+# 4. Install or update the alias idempotently.
 if grep -Eq "^alias[[:space:]]+${ALIAS_NAME}=" "$RC"; then
     existing="$(grep -E "^alias[[:space:]]+${ALIAS_NAME}=" "$RC" | head -1)"
     if [ "$existing" = "$ALIAS_LINE" ]; then
