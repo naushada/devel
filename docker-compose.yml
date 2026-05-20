@@ -6,8 +6,6 @@ services:
       args:
         HOST_UID: ${HOST_UID:-1000}
         HOST_GID: ${HOST_GID:-1000}
-      platforms:
-        - linux/arm64
     image: devel-cpp:latest
     container_name: devel
     hostname: devel
