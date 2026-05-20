@@ -51,18 +51,20 @@ podman machine start     # starts the VM (run.sh does this automatically on subs
 
 ## First-time Setup
 
-From the cloned repo directory, run:
+From the cloned repo directory, run `install.sh`. It works **two ways**:
 
 ```bash
-./install.sh
+source ./install.sh    # recommended — also activates `devel` in the current shell
+./install.sh           # executes normally — `devel` is ready in new shells only
 ```
 
 `install.sh` will:
+- ensure a container engine is available (prefer `podman`, then `docker`; install `docker` if neither is found)
 - detect your shell (`$SHELL`, then existing rc files, then platform default)
 - add `alias devel="<absolute path>/run.sh"` to your `~/.zshrc` or `~/.bashrc` (idempotent — safe to re-run; updates the path if you moved the repo)
 - launch the container (which builds the image on first run)
 
-Open a new shell or `source ~/.zshrc` (or `~/.bashrc`) afterwards to use `devel` from any directory.
+**Why two ways?** A script run as `./install.sh` is a child process — it can write the alias to your rc file but cannot add it to the shell that started it. **Sourcing** runs in your current shell, so `devel` works immediately. If you used `./install.sh`, open a new shell or run `source ~/.zshrc` (or `~/.bashrc`) afterwards to use `devel`.
 
 ---
 
