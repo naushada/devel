@@ -7,7 +7,7 @@ A Docker-based C++ development environment built on Ubuntu 24.04, with the host 
 | File | Purpose |
 |---|---|
 | `Dockerfile` | Ubuntu 24.04 image with full C++ toolchain |
-| `docker-compose.yml` | Mounts `$HOME/repo` → `~/repo` inside the container |
+| `docker-compose.yml` | Mounts `$REPO` (defaults to `$HOME`) → `~/repo` inside the container |
 | `run.sh` | Convenience wrapper script |
 
 ## Included Tools
@@ -78,7 +78,7 @@ devel
 - Detect whether Docker or Podman is available
 - Start the Podman VM if it is not running (macOS only)
 - Build the image if it does not exist yet
-- Mount `$HOME/repo` to `/repo` inside the container
+- Mount `$REPO` (defaults to `$HOME`) to `~/repo` inside the container
 - Open an interactive bash shell
 
 ### All commands
@@ -105,15 +105,28 @@ engineer:/repo$
 
 ---
 
-## Volume Mount
+## Volume Mount (`REPO`)
 
-The host directory `${REPO:-$HOME}` is mounted to `~/repo` (`/home/engineer/repo`) inside the container. Set `REPO` to override the source; it defaults to `$HOME`. Files created or modified inside the container are immediately reflected on the host, and vice versa.
+The host directory `$REPO` is mounted to `~/repo` (`/home/engineer/repo`) inside the container. Files created or modified inside the container are immediately reflected on the host, and vice versa.
+
+`REPO` defaults to `$HOME`. To mount a specific project instead, export it before launching:
+
+```bash
+export REPO="$HOME/projects/myapp"
+devel
+```
+
+- Use an **absolute path** — bind mounts require it (`$(pwd)` or `$HOME/...` is fine; `./myapp` is not).
+- The directory must already exist on the host.
+- **macOS:** `REPO` must be inside your home directory — the Podman/Docker Desktop VM only shares `$HOME` by default, so a path outside it would mount as empty.
 
 ---
 
 ## File Permissions
 
-The container runs as a non-root user (`engineer`) whose UID and GID are matched to your host user at build time. Files created inside the container have the correct ownership on the host.
+The container runs as a non-root user (`engineer`) whose UID and GID are matched to your host user at build time (`run.sh` passes `HOST_UID`/`HOST_GID`). Files created inside the container have the correct ownership on the host.
+
+On Linux your host user is typically UID/GID 1000 — the same UID/GID as the default `ubuntu` user shipped in the `ubuntu:24.04` base image. The Dockerfile removes that default user before creating `engineer`, so the build does not fail with `useradd: UID 1000 is not unique`.
 
 ---
 
