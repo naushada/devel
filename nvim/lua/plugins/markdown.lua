@@ -19,12 +19,13 @@ return {
     "iamcco/markdown-preview.nvim",
     cmd = { "MarkdownPreview", "MarkdownPreviewStop", "MarkdownPreviewToggle" },
     ft = { "markdown" },
-    -- Use the plugin's own installer (downloads a prebuilt binary) instead of
-    -- `npm/yarn install`, which rewrites app/yarn.lock and leaves the git
-    -- checkout dirty — that dirty state makes lazy.nvim refuse to update it.
-    build = function()
-      vim.fn["mkdp#util#install"]()
-    end,
+    -- Build with npm rather than yarn: `yarn install` rewrites the tracked
+    -- app/yarn.lock and leaves the checkout dirty, which makes lazy.nvim refuse
+    -- to update the plugin. `npm install` only writes an untracked
+    -- package-lock.json, so the tree stays clean. (The mkdp#util#install()
+    -- build function form fails with E117 here because the plugin is
+    -- lazy-loaded and its autoload file is not on the runtimepath at build.)
+    build = "cd app && npm install",
     config = function()
       vim.g.mkdp_auto_close = 1
       vim.g.mkdp_browser = ""
