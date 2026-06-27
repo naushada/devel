@@ -8,7 +8,10 @@ A Docker-based C++ development environment built on Ubuntu 24.04, with the host 
 |---|---|
 | `Dockerfile` | Ubuntu 24.04 image with full C++ toolchain |
 | `docker-compose.yml` | Mounts `$REPO` (defaults to `$HOME`) → `~/repo` inside the container |
-| `run.sh` | Convenience wrapper script |
+| `install.sh` | One-time setup: ensures an engine, installs the `devel` alias, launches the container |
+| `run.sh` | Convenience wrapper invoked by the `devel` alias (build/up/down/shell, tmux wrapping) |
+| `entrypoint.sh` | Container entrypoint: wires up the docker socket group and drops to the `engineer` user |
+| `nvim/lua/plugins/` | LazyVim plugin specs copied into the image (C++, completion, markdown, etc.) |
 
 ## Included Tools
 
@@ -68,6 +71,37 @@ source ./install.sh    # recommended — also activates `devel` in the current s
 
 ---
 
+## Running on a Remote Linux Server
+
+The environment is well suited to a remote VM reached over SSH. On Linux, `install.sh` will install Docker for you if it is missing (via `get.docker.com`) and add your user to the `docker` group.
+
+End-to-end from a fresh server:
+
+```bash
+# 1. (Optional) create a dedicated login user with sudo access.
+sudo useradd -m -s /bin/bash engineer
+echo 'engineer:engineer' | sudo chpasswd      # change this password!
+sudo usermod -aG sudo engineer                 # 'wheel' on RHEL/Fedora
+# then log in as that user: ssh engineer@<host>  (or: su -l engineer)
+
+# 2. Clone and install. Installs Docker if absent and adds you to the docker group.
+git clone https://github.com/naushada/devel.git
+cd devel
+./install.sh
+
+# 3. If you were just added to the 'docker' group, log out and back in once so
+#    the new group takes effect (see Troubleshooting), then launch:
+devel
+```
+
+Notes for remote use:
+
+- **Persistent sessions.** `devel` runs inside tmux, so you can detach (`Ctrl-b d`), drop your SSH connection, reconnect later, and run `devel` again to resume exactly where you left off. See [Persistent Sessions (tmux)](#persistent-sessions-tmux).
+- **Running as `root`.** If your server logs you in as `root` (UID/GID 0), the build still works — the `engineer` user is created sharing UID/GID 0 via `useradd -o`. No separate user is required.
+- **UID/GID matching.** `run.sh` passes your host `HOST_UID`/`HOST_GID` into the build so files under `~/repo` keep the right ownership on the host.
+
+---
+
 ## Daily Usage
 
 Simply type `devel` from anywhere to drop into the container:
@@ -82,7 +116,7 @@ devel
 - Build the image if it does not exist yet
 - Mount `$REPO` (defaults to `$HOME`) to `~/repo` inside the container
 - Wrap the interactive shell in a persistent **tmux** session (see below)
-- Open an interactive bash shell
+- Open an interactive zsh shell
 
 ### All commands
 
@@ -138,10 +172,43 @@ colors still look wrong, confirm your **outer** terminal/SSH client advertises
 Once inside the container the prompt looks like:
 
 ```
-engineer:/repo$
+engineer:~/repo%
 ```
 
-`engineer` is shown in green and the current path in blue.
+`engineer` is shown in green and the current path in blue (`%` is the zsh prompt character).
+
+---
+
+## Markdown Preview
+
+Neovim ships with `markdown-preview.nvim`. Open a markdown file and use:
+
+```
+:MarkdownPreview        " start the live preview
+:MarkdownPreviewStop    " stop it
+:MarkdownPreviewToggle  " toggle
+```
+
+The preview is served by a small HTTP server **inside the container**, and the container has no browser of its own — nor does `docker-compose.yml` publish any ports. So to view the preview you reach that server's port from a machine that *does* have a browser (your laptop).
+
+On a remote VM, pin the port and bind it to all interfaces by adding to your Neovim config, then tunnel it over SSH:
+
+```lua
+-- e.g. in ~/.config/nvim/lua/config/ or the markdown-preview spec
+vim.g.mkdp_port = "8080"
+vim.g.mkdp_open_to_the_world = 1   -- listen on 0.0.0.0 so the tunnel reaches it
+vim.g.mkdp_auto_start = 0
+```
+
+```bash
+# Run the container with the port published (host -> container)...
+#   add `ports: ["8080:8080"]` to the devel service in docker-compose.yml
+# ...then from your laptop, tunnel the VM's published port:
+ssh -L 8080:localhost:8080 engineer@<host>
+# open http://localhost:8080 in your local browser, then :MarkdownPreview in nvim
+```
+
+> For purely local in-buffer rendering (no browser needed), the environment also includes `render-markdown.nvim`, which styles headings, code blocks, tables, and checkboxes directly inside Neovim.
 
 ---
 
