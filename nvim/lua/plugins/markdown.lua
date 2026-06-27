@@ -19,7 +19,12 @@ return {
     "iamcco/markdown-preview.nvim",
     cmd = { "MarkdownPreview", "MarkdownPreviewStop", "MarkdownPreviewToggle" },
     ft = { "markdown" },
-    build = "cd app && npm install",
+    -- Use the plugin's own installer (downloads a prebuilt binary) instead of
+    -- `npm/yarn install`, which rewrites app/yarn.lock and leaves the git
+    -- checkout dirty — that dirty state makes lazy.nvim refuse to update it.
+    build = function()
+      vim.fn["mkdp#util#install"]()
+    end,
     config = function()
       vim.g.mkdp_auto_close = 1
       vim.g.mkdp_browser = ""
