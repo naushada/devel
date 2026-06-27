@@ -76,11 +76,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Set up the engineer user (matches host UID/GID to avoid permission issues).
 # Ubuntu 24.04 ships a default 'ubuntu' user at UID/GID 1000; remove it first
 # so it does not collide when the host UID/GID is also 1000 (typical on Linux).
+# When the host runs as root (UID/GID 0), those IDs already belong to root, so
+# reuse the existing group and pass useradd -o to allow the non-unique UID;
+# engineer then shares root's UID/GID but keeps its own /home/engineer.
 ARG HOST_UID=1000
 ARG HOST_GID=1000
 RUN if id ubuntu >/dev/null 2>&1; then userdel -rf ubuntu; fi && \
     (getent group ${HOST_GID} || groupadd -g ${HOST_GID} engineer) && \
-    useradd -m -u ${HOST_UID} -g ${HOST_GID} -s /bin/zsh engineer && \
+    useradd -o -m -u ${HOST_UID} -g ${HOST_GID} -s /bin/zsh engineer && \
     echo 'engineer:engineer' | chpasswd && \
     usermod -aG docker,sudo engineer
 

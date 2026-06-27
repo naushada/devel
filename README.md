@@ -149,3 +149,27 @@ docker run --rm my-image
 ```
 
 > Containers launched from inside this environment are siblings on the host, not nested children.
+
+---
+
+## Troubleshooting
+
+### `permission denied while trying to connect to the docker API at unix:///var/run/docker.sock`
+
+Seen when running `./install.sh` / `./run.sh` as a host user that is not in the host's `docker` group. The Docker socket is owned by `root:docker`, so only root or `docker` group members can talk to the daemon. (Note: the `usermod -aG docker engineer` inside the Dockerfile applies to the `engineer` user *in the image*, not to your user on the host VM.)
+
+Add your host user to the `docker` group, then start a **fresh login session** — group membership is only re-read at login, so the current shell keeps its old groups:
+
+```bash
+sudo usermod -aG docker "$USER"   # add to the docker group
+# then log out and back in (e.g. exit your SSH session and reconnect)
+```
+
+Verify:
+
+```bash
+id            # 'docker' now appears in the groups list
+docker ps     # runs without 'permission denied'
+```
+
+If `getent group docker` returns nothing, create the group first with `sudo groupadd docker`, then re-run the `usermod`.
