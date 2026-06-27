@@ -112,6 +112,17 @@ RUN ARCH=$(uname -m) && \
     ln -sf /opt/nvim-linux-${NVIM_ARCH}/bin/nvim /usr/local/bin/nvim && \
     rm /tmp/nvim.tar.gz
 
+# Install the tree-sitter CLI. nvim-treesitter's `main` branch needs it to
+# build parsers, and mason is disabled in the LazyVim config so it cannot
+# install it automatically. Fetch the prebuilt binary from the official release.
+RUN ARCH=$(uname -m) && \
+    [ "$ARCH" = "aarch64" ] && TS_ARCH="arm64" || TS_ARCH="x64" && \
+    curl -fLo /tmp/tree-sitter.gz \
+        "https://github.com/tree-sitter/tree-sitter/releases/latest/download/tree-sitter-linux-${TS_ARCH}.gz" && \
+    gunzip -c /tmp/tree-sitter.gz > /usr/local/bin/tree-sitter && \
+    chmod +x /usr/local/bin/tree-sitter && \
+    rm /tmp/tree-sitter.gz
+
 
 WORKDIR /home/engineer/repo
 
