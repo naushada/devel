@@ -81,6 +81,7 @@ devel
 - Start the Podman VM if it is not running (macOS only)
 - Build the image if it does not exist yet
 - Mount `$REPO` (defaults to `$HOME`) to `~/repo` inside the container
+- Wrap the interactive shell in a persistent **tmux** session (see below)
 - Open an interactive bash shell
 
 ### All commands
@@ -92,6 +93,43 @@ devel build      # (re)build the container image
 devel up         # start the container in the background
 devel down       # stop and remove the container
 ```
+
+---
+
+## Persistent Sessions (tmux)
+
+The interactive shell (`devel` / `devel shell`) is launched inside a tmux
+session named `devel`, so the container survives SSH disconnects — handy on a
+remote VM. Start work, detach, lose your connection, reconnect, and run `devel`
+again to drop straight back into the running session.
+
+```bash
+devel                 # creates/attaches the 'devel' tmux session
+# Ctrl-b d            # detach — the container keeps running
+# ...reconnect over SSH...
+devel                 # re-attaches to the same live session
+```
+
+`run.sh` re-execs itself with `tmux new-session -A`, which **attaches** to the
+session if it already exists and **creates** it otherwise. tmux is skipped
+automatically when it is not relevant:
+
+- tmux is not installed
+- you are already inside a tmux session (no nesting)
+- stdin is not a terminal (e.g. piped/CI use)
+
+| Variable | Effect |
+|---|---|
+| `DEVEL_NO_TMUX=1` | Disable the tmux wrapper; run the shell directly |
+| `DEVEL_TMUX_SESSION=name` | Use a different session name (default `devel`) |
+
+**Colors / truecolor.** tmux is launched with `-2` to force 256-color support
+(plain tmux otherwise advertises only the 8-color `screen` terminal), and a
+`terminal-overrides ",xterm-256color:RGB"` entry is set so 24-bit truecolor
+output from the container (e.g. Neovim/LazyVim themes) passes through
+correctly. The container itself always runs with `TERM=xterm-256color`. If
+colors still look wrong, confirm your **outer** terminal/SSH client advertises
+`TERM=xterm-256color` (`echo $TERM`), since the override keys off that.
 
 ---
 

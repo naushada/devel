@@ -57,6 +57,27 @@ if [ "$ENGINE" = "podman" ] && [[ "$(uname)" == "Darwin" ]]; then
     fi
 fi
 
+# Re-exec the interactive session inside a persistent tmux session so the
+# container shell survives SSH disconnects (detach with Ctrl-b d, reconnect
+# with `devel` to reattach). Uses `new-session -A` so it attaches to the
+# existing session if one is already running. Skipped when tmux is missing,
+# when already inside tmux (no nesting), when stdin is not a terminal, or
+# when DEVEL_NO_TMUX=1. Override the session name with DEVEL_TMUX_SESSION.
+TMUX_SESSION="${DEVEL_TMUX_SESSION:-devel}"
+maybe_reexec_in_tmux() {
+    [ "${DEVEL_NO_TMUX:-0}" = "1" ] && return 0
+    [ -n "${TMUX:-}" ] && return 0
+    command -v tmux >/dev/null 2>&1 || return 0
+    [ -t 0 ] || return 0
+    echo "Attaching to tmux session '${TMUX_SESSION}' (set DEVEL_NO_TMUX=1 to disable)..."
+    # -2 forces 256-color (tmux otherwise advertises 8-color 'screen'); the
+    # terminal-overrides entry enables 24-bit truecolor passthrough so the
+    # container's xterm-256color output (nvim/LazyVim themes) renders correctly.
+    exec tmux -2 \
+        set -ga terminal-overrides ",xterm-256color:RGB" \; \
+        new-session -A -s "$TMUX_SESSION" "$0" "$@"
+}
+
 podman_run() {
     podman run --rm -it \
         --hostname devel \
@@ -105,6 +126,7 @@ EOF
     set -e
     ;;
   shell|"")
+    maybe_reexec_in_tmux "$@"
     if ! $ENGINE image inspect devel-cpp:latest &>/dev/null; then
       echo "Image not found — building first..."
       $COMPOSE $COMPOSE_FILES build
